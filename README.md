@@ -1,7 +1,7 @@
 Notifier
 ========
 
-This is a simple repetitive notifier/reminder intended for (e.g.) habit improvement or regular exercises.
+This is a simple repetitive notifier/reminder intended for (e.g.) habit improvement or regular exercises, written for Android phones.
 
 Usage/Features:
 - Basic function - every x minutes, it discretely vibrates. That's all. No interaction needed.

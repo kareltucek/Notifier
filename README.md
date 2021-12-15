@@ -1,12 +1,12 @@
 Notifier
 ========
 
-This is a simple repetitive notifier/reminder intended for (e.g.) habit improvement or regular exercises.
+This is a simple repetitive notifier/reminder intended for (e.g.) habit improvement or regular exercises, written for Android phones.
 
 Usage/Features:
 - Basic function - every x minutes, it discretely vibrates. That's all. No interaction needed.
-- Reminders are sent only during a part of your day - by default 8AM to 10PM.
-- If you do not want to get notifications at some particular time, you can snooze it - e.g., for a few hours, or until tomorrow, or until next friday after. After that, the reminders will resume automatically.
+- Reminders are active only during a part of your day - by default 8AM to 10PM.
+- If you do not want to get reminders at some particular time, you can snooze it - e.g., for a few hours, or until tomorrow, or until next friday after. After that, the reminders will resume automatically.
 
 Vibration pattern:
 - The reminder takes form of four ticks. Every one of the ticks can be either short or long. The short/long pattern forms binary number describing current phase of the subdivision. The patterns are namely:

@@ -140,7 +140,7 @@
                 android:id="@+id/BtnNow"
                 android:layout_width="96dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="0.5"
+                android:layout_weight="0"
                 android:onClick="onClickNow"
                 android:text="Now"
                 android:textAllCaps="false"
@@ -183,6 +183,35 @@
             android:layout_height="16dp"
             android:layout_weight="1" />
 
+        <CheckBox
+            android:id="@+id/CbPermanent"
+            android:layout_width="256dp"
+            android:layout_height="wrap_content"
+            android:text="Show permanent notification " />
+
+        <CheckBox
+            android:id="@+id/CbTick"
+            android:layout_width="256dp"
+            android:layout_height="wrap_content"
+            android:text="Fire tick notifications" />
+
+        <CheckBox
+            android:id="@+id/CbVibrate"
+            android:layout_width="256dp"
+            android:layout_height="wrap_content"
+            android:text="Vibrate pattern" />
+
+        <CheckBox
+            android:id="@+id/CbPlay"
+            android:layout_width="256dp"
+            android:layout_height="wrap_content"
+            android:text="Play sound" />
+
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="16dp"
+            android:layout_weight="1" />
+
         <Button
             android:id="@+id/Done"
             android:layout_width="96dp"
@@ -197,27 +226,26 @@
             android:layout_height="16dp"
             android:layout_weight="1" />
 
-        <Button
-            android:id="@+id/BtnTestAlarm"
-            android:layout_width="96dp"
-            android:layout_height="wrap_content"
-            android:onClick="onClickTestAlarm"
-            android:text="Test alarm"
-            android:textAllCaps="false"
-            android:textSize="12sp"
-            android:visibility="gone" />
-
-        <Button
-            android:id="@+id/BtnTestNotification"
+        <TextView
+            android:id="@+id/LabelWarning"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:onClick="onClickTestNotification"
-            android:text="Test notification "
-            android:textAllCaps="false"
-            android:textSize="12sp"
-            android:visibility="gone" />
+            android:layout_height="wrap_content" />
 
 
     </LinearLayout>
+
+    <Button
+        android:id="@+id/button10"
+        android:layout_width="96dp"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginRight="8dp"
+        android:onClick="onClickExit"
+        android:text="Quit"
+        android:textAllCaps="false"
+        android:textSize="12sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
 </android.support.constraint.ConstraintLayout>

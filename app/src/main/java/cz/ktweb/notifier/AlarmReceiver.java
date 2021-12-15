@@ -1,84 +1,57 @@
 package cz.ktweb.notifier;
 
+import android.app.AlarmManager;
+import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Build;
-import android.os.VibrationEffect;
-import android.os.Vibrator;
 
 import java.util.Date;
 
 
 public class AlarmReceiver extends BroadcastReceiver {
+    public static Date nextTick = new Date();
+    public static int nextCode = 0;
 
     @Override
-    public void onReceive(Context context, Intent intent) {
-        HandleAlarm(context);
+    public void onReceive(Context ctx, Intent intent) {
+        Date currentTick = nextTick;
+        int currentCode = this.nextCode;
+        setupNewAlarm(ctx);
+        NoiseMaker.HandleTick(ctx, currentTick, currentCode);
+        //whatever was set up, cancel it - prevent accidental existence of multiple parallel timers
+        nextCode = currentCode + 1;
+        cancelAlarm(ctx, currentCode);
     }
 
-    static public void HandleAlarm(Context ctx) {
-        Date now = new Date();
-        Date today = new Date();
-        today.setHours(0);
-        today.setMinutes(0);
-        today.setSeconds(0);
-        long nowMinutes = (now.getTime()/1000 - today.getTime()/1000)/60;
+    static public void setupAlarm(Context ctx, int code) {
+        nextTick = new Date((System.currentTimeMillis() + Config.interval*60000)/(Config.interval*60000)*(Config.interval*60000));
 
-        if(now.getTime() < Config.snoozeUntil.getTime()) {
-            return;
-        }
+        AlarmManager alarmMgr = (AlarmManager)ctx.getSystemService(Context.ALARM_SERVICE);
+        Intent intent = new Intent(ctx, AlarmReceiver.class);
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(ctx, code, intent, 0);
 
-        if(nowMinutes < Config.activeSince || nowMinutes > Config.activeUntil) {
-            return;
-        }
-
-        if(nowMinutes % Config.interval != 0) {
-            return;
-        }
-
-        int indicate = 0;
-        int indicateTime = (int)nowMinutes;
-
-        if(true) {
-            indicateTime %= 12*60;
-        }
-        if(Config.interval < 60) {
-            indicateTime %= 60;
-        }
-        if(Config.interval < 5) {
-            indicateTime %= 10;
-        }
-
-        indicate = indicateTime / Config.interval;
-
-        Vibrate(ctx, indicate);
+        alarmMgr.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, nextTick.getTime(), pendingIntent);
     }
 
-    public static int tickLength = 100;
-    public static int vibratePeriod = 400;
-
-    public static int p(int v, int mask) {
-        return (v & mask) > 0 ? tickLength*2 : tickLength;
+    static public void setupNewAlarm(Context ctx) {
+        int currentCode = nextCode;
+        setupAlarm(ctx, currentCode+1);
+        nextCode = currentCode+1;
+        cancelAlarm(ctx, currentCode);
     }
 
-    public static int n(int v, int mask) {
-        return (v & mask) > 0 ? vibratePeriod - tickLength*2 : vibratePeriod - tickLength;
+    static public void cancelAlarm(Context ctx, int code) {
+        AlarmManager alarmMgr = (AlarmManager)ctx.getSystemService(Context.ALARM_SERVICE);
+        Intent intent = new Intent(ctx, AlarmReceiver.class);
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(ctx, code, intent, 0);
+
+        alarmMgr.cancel(pendingIntent);
+        pendingIntent.cancel();
     }
 
-    static public void Vibrate(Context ctx, int i) {
-        Vibrator v = (Vibrator) ctx.getSystemService(Context.VIBRATOR_SERVICE);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            long[] pattern = {0,
-                    p(i, 8), n(i, 8),
-                    p(i, 4), n(i, 4),
-                    p(i, 2), n(i, 2),
-                    p(i, 1), n(i, 1),
-            };
-            v.vibrate(VibrationEffect.createWaveform(pattern,-1));
-        } else {
-            //deprecated in API 26
-            v.vibrate(300);
-        }
+    static public void cancelCurrentAlarm(Context ctx) {
+        cancelAlarm(ctx, nextCode);
     }
+
 }

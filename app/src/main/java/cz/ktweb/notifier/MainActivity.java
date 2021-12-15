@@ -1,22 +1,24 @@
 package cz.ktweb.notifier;
 
-import android.app.AlarmManager;
-import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Build;
+import android.os.PowerManager;
+import android.provider.Settings;
 import android.support.v4.app.NotificationCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.SeekBar;
 import android.widget.TextView;
 
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
 import java.util.Date;
 
 public class MainActivity extends AppCompatActivity {
@@ -26,11 +28,15 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        Config.Load(this);
+
         setupUI();
 
-        setupAlarm();
+        TimerManager.SetupTimer(this);
 
-        showNotification();
+        updateNotifications();
+
+        checkBatteryOptimisations();
     }
 
     final public static int[] intervals = {1,5,15,30,60,60*2,60*3,60*4,60*6,60*8};
@@ -50,18 +56,32 @@ public class MainActivity extends AppCompatActivity {
         ((TextView)findViewById(R.id.LabelUntil)).setText("Active until " + Config.activeUntil/60 + "h");
     }
 
+    public void checkBatteryOptimisations() {
+        Intent intent = new Intent();
+        String packageName = this.getPackageName();
+        PowerManager pm = (PowerManager) this.getSystemService(Context.POWER_SERVICE);
+        if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+            ((TextView)findViewById(R.id.LabelWarning)).setText("App not exempted from battery saving!");
+            intent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+            intent.setData(Uri.parse("package:" + this.getPackageName()));
+            this.startActivity(intent);
+        }
+    }
+
     public void setupUI() {
+        final MainActivity me = this;
 
         final SeekBar mySeekBar = ((SeekBar) findViewById(R.id.SeekBarInterval));
+        mySeekBar.setMax(intervals.length-1);
         mySeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
             @Override
             public void onProgressChanged(SeekBar arg0, int arg1, boolean arg2) {
-                int[] intervals = {1,5,15,30,60,60*2,60*3,60*4,60*6,60*8};
                 int v = 15;
                 if(arg1 >= 0 && arg1 < intervals.length) {
                     v = intervals[arg1];
                 }
                 Config.interval = v;
+                TimerManager.SetupTimer(getApplicationContext());
                 updateIntervalText();
             }
             @Override
@@ -121,37 +141,70 @@ public class MainActivity extends AppCompatActivity {
         mySeekBar3.setProgress(Config.activeUntil/60);
         updateSinceUntilTexts();
 
+        final CheckBox cb1 = ((CheckBox) findViewById(R.id.CbPermanent));
+        cb1.setChecked(Config.showPermanent);
+        cb1.setOnCheckedChangeListener(new CheckBox.OnCheckedChangeListener(){
+                @Override
+                public void onCheckedChanged(CompoundButton var1, boolean var2){
+                    Config.showPermanent = var2;
+                    updateNotifications();
+                }
+             }
+        );
+
+
+        final CheckBox cb2 = ((CheckBox) findViewById(R.id.CbTick));
+        cb2.setChecked(Config.fireTicks);
+        cb2.setOnCheckedChangeListener(new CheckBox.OnCheckedChangeListener(){
+                                           @Override
+                                           public void onCheckedChanged(CompoundButton var1, boolean var2){
+                                               Config.fireTicks = var2;
+                                               updateNotifications();
+                                           }
+                                       }
+        );
+
+
+        final CheckBox cb3 = ((CheckBox) findViewById(R.id.CbVibrate));
+        cb3.setChecked(Config.vibrateTicks);
+        cb3.setOnCheckedChangeListener(new CheckBox.OnCheckedChangeListener(){
+                                           @Override
+                                           public void onCheckedChanged(CompoundButton var1, boolean var2){
+                                               Config.vibrateTicks = var2;
+                                               updateNotifications();
+                                           }
+                                       }
+        );
+
+        final CheckBox cb4 = ((CheckBox) findViewById(R.id.CbPlay));
+        cb4.setChecked(Config.playTicks);
+        cb4.setOnCheckedChangeListener(new CheckBox.OnCheckedChangeListener(){
+                                           @Override
+                                           public void onCheckedChanged(CompoundButton var1, boolean var2){
+                                               Config.playTicks = var2;
+                                               updateNotifications();
+                                           }
+                                       }
+        );
+
+
+
+
         updateDelayText();
     }
 
-    public void setupAlarm() {
-        AlarmManager alarmMgr = (AlarmManager)getSystemService(Context.ALARM_SERVICE);
-        Intent intent = new Intent(this, AlarmReceiver.class);
-        PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 0, intent, 0);
-        //alarmMgr.setRepeating(AlarmManager.RTC_WAKEUP, System.currentTimeMillis(), 10*1000, pendingIntent);
-
-
-        Calendar time = Calendar.getInstance();
-        time.setTimeInMillis(System.currentTimeMillis());
-        time.add(Calendar.SECOND, 5);
-        alarmMgr.setRepeating(AlarmManager.RTC_WAKEUP, time.getTimeInMillis()/60000*60000, 60*1000, pendingIntent);
-
+    public void updateNotifications() {
+        ((NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE)).cancelAll();
+        if(Config.showPermanent) {
+            showPersistentNotification();
+        }
     }
 
-    public void showNotification() {
-        PendingIntent contentIntent = PendingIntent.getActivity(this, 0,
-                new Intent(this, MainActivity.class), PendingIntent.FLAG_UPDATE_CURRENT);
 
-        NotificationCompat.Builder mBuilder =
-                new NotificationCompat.Builder(this)
-                        .setSmallIcon(R.drawable.ic_icon)
-                        .setOngoing(true)
-                        .setContentTitle("Notifier running!")
-                        .setContentText("Notifier running!")
-                        .setContentIntent(contentIntent);
 
+    public static void showNotification(Context ctx, int id, NotificationCompat.Builder builder) {
         NotificationManager mNotificationManager =
-                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+                (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
         {
@@ -161,10 +214,44 @@ public class MainActivity extends AppCompatActivity {
                     "Channel human readable title",
                     NotificationManager.IMPORTANCE_LOW);
             mNotificationManager.createNotificationChannel(channel);
-            mBuilder.setChannelId(channelId);
+            builder.setChannelId(channelId);
         }
 
-        mNotificationManager.notify(0, mBuilder.build());
+        mNotificationManager.notify(id, builder.build());
+    }
+
+    public void showPersistentNotification() {
+        PendingIntent contentIntent = PendingIntent.getActivity(this, 0,
+                new Intent(this, MainActivity.class), PendingIntent.FLAG_UPDATE_CURRENT);
+
+        NotificationCompat.Builder builder =
+                new NotificationCompat.Builder(this)
+                        .setSmallIcon(R.drawable.ic_icon)
+                        .setOngoing(true)
+                        .setContentTitle("Notifier running!")
+                        .setContentText("Tap to open.")
+                        .setContentIntent(contentIntent);
+
+        showNotification(this, 0, builder);
+    }
+
+
+    public static void showTickNotification(Context ctx, Date mention, int code) {
+        NotificationCompat.Builder builder =
+                new NotificationCompat.Builder(ctx)
+                        .setSmallIcon(R.drawable.ic_fire)
+                        .setContentTitle("Notifier tick!")
+                        .setContentText(
+                                "Reminder planned for " +
+                                new SimpleDateFormat("HH:mm").format(mention) +
+                                " fired at " +
+                                new SimpleDateFormat("HH:mm").format(new Date()) +
+                                " with id " +
+                                code
+                        )
+                        .setAutoCancel(true);
+
+        showNotification(ctx, (int)System.currentTimeMillis(), builder);
     }
 
     public void updateDelayText() {
@@ -176,7 +263,7 @@ public class MainActivity extends AppCompatActivity {
             txt += "until -";
         } else if(Config.snoozeUntil.getMinutes() == 0 && Config.snoozeUntil.getHours() == 0) {
             if (Config.snoozeUntil.getDay() == new Date().getDay() + 1 && soon) {
-                txt += "until tommorow";
+                txt += "until tomorrow";
             } else if (Config.snoozeUntil.getTime() < new Date().getTime() + 7 * 24 * 60 * 60 * 1000) {
                 txt += "until " + new SimpleDateFormat("EEE").format(Config.snoozeUntil);
             } else {
@@ -229,10 +316,19 @@ public class MainActivity extends AppCompatActivity {
     public void onClickp4h(View v) { updateDelayMin(240); }
     public void onClickp1d(View v) { updateDelayDay(1);  }
 
-    public void onClickTestAlarm(View v) { AlarmReceiver.Vibrate(getApplicationContext(), 8);  }
+    public void onClickTestAlarm(View v) { NoiseMaker.Vibrate(getApplicationContext(), 8);  }
 
-    public void onClickTestNotification(View v) { showNotification(); }
+    public void onClickDone(View v) {
+        Config.Save(this);
+        moveTaskToBack(true);
+    }
 
-    public void onClickDone(View v) { moveTaskToBack(true); }
+    public void onClickExit(View v) {
+        TimerManager.CancelTimer(this);
+        ((NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE)).cancelAll();
+        finishAndRemoveTask();
+        android.os.Process.killProcess(android.os.Process.myPid());
+        System.exit(1);
+    }
 
 }
